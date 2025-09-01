@@ -1,4 +1,4 @@
-# RC F1 Car Firmware (Arduino Uno)
+## RC F1 Car Firmware (Arduino Uno)
 
 Single-file Arduino firmware for a 1/10 RC F1 car. It reads two PWM channels
 (throttle, steering) from an RC receiver and drives a brushless ESC + servo with
