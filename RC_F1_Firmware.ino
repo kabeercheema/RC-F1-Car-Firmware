@@ -3,7 +3,6 @@
 
 # Arduino Uno Firmware (`RC_F1_Firmware.ino`)
 
-```cpp
 /*
   RC_F1_Firmware.ino
   ----------------------------------------------------------------------
@@ -30,9 +29,9 @@
 #include <EEPROM.h>
 #include <math.h>
 
-// ====== Compile-time configuration ======
+// Compile-time configuration
 
-// --- Pins (Arduino Uno) ---
+// Pins (Arduino Uno)
 #define PIN_IN_THROTTLE    2    // INT0
 #define PIN_IN_STEERING    3    // INT1
 #define PIN_OUT_ESC        10   // Servo-capable
@@ -41,13 +40,13 @@
 #define PIN_STATUS_LED     13   // Built-in LED
 #define PIN_VBAT           A0   // Optional battery monitor
 
-// --- RC pulse expectations ---
+// RC pulse expectations
 #define RC_PULSE_MIN_US        1000
 #define RC_PULSE_MAX_US        2000
 #define RC_PULSE_NEUTRAL_US    1500
 #define RC_SIGNAL_TIMEOUT_US   100000UL  // 100 ms -> FAULT on loss
 
-// --- Output pulse bounds ---
+// Output pulse bounds
 #define ESC_MIN_US          1000
 #define ESC_MAX_US          2000
 #define ESC_NEUTRAL_US      1500
@@ -55,13 +54,13 @@
 #define STEER_MAX_US        1900
 #define STEER_CENTER_US     1500
 
-// --- Filtering / shaping ---
+// Filtering / shaping
 #define EMA_ALPHA           0.25f   // Exponential moving average weight
 #define DEADBAND_NORM       0.04f   // deadband in normalized units (-1..1)
 #define EXPO                0.25f   // 0..1 (higher = more center softness)
 #define SLEW_PER_SEC        3.0f    // max change per second in normalized units
 
-// --- Battery (optional) ---
+// Battery (optional)
 #define VBAT_R1             100000.0f  // top resistor (ohms)
 #define VBAT_R2             10000.0f   // bottom resistor (ohms)
 #define VBAT_ADC_REF        5.0f       // Uno default analog reference
@@ -69,27 +68,27 @@
 #define VBAT_LOW_WARN       6.6f       // 2S @ 3.3 V/cell
 #define VBAT_SAMPLE_MS      250
 
-// --- Arming / timing ---
+// Arming /timing
 #define ESC_NEUTRAL_ON_BOOT_MS  2000
 #define BTN_DEBOUNCE_MS           40
 #define LONG_PRESS_MS           1500   // hold on boot -> calibration
 #define LOOP_DT_TARGET_MS         10   // 100 Hz loop
 
-// --- EEPROM layout ---
+// EEPROM layout
 #define EEPROM_ADDR_CAL     0
 #define CAL_VERSION         1
 
-// ====== Types ======
+// Types 
 enum RunState : uint8_t { DISARMED = 0, ARMED = 1, FAULT = 2 };
 
 struct CalData {
   uint16_t thrMin, thrMid, thrMax;
   uint16_t strMin, strMid, strMax;
   uint8_t  version;
-  uint8_t  checksum; // simple 8-bit sum (excludes this field when computed)
+  uint8_t  checksum; // simple 8-bit sum (not included when computed)
 };
 
-// ====== Globals ======
+// Globals
 Servo esc, steer;
 
 // RC input capture (ISR-updated)
@@ -111,7 +110,7 @@ float g_strOut = 0.0f;
 uint32_t g_lastLoopUs = 0;
 uint32_t g_lastVBatMs = 0;
 
-// ====== Utility ======
+// Utilty
 uint8_t calcChecksum(const CalData &c) {
   const uint8_t *p = (const uint8_t*)&c;
   uint8_t sum = 0;
@@ -169,7 +168,7 @@ float readVBat() {
   return vin;
 }
 
-// ====== ISRs: RC receiver capture ======
+// ISRs: RC receiver capture
 void ISR_ThrChange() {
   uint8_t level = digitalRead(PIN_IN_THROTTLE);
   uint32_t now = micros();
@@ -189,7 +188,7 @@ void ISR_StrChange() {
   }
 }
 
-// ====== Button (debounced edge) ======
+// Button (debounced edg)
 bool buttonPressed() {
   bool level = digitalRead(PIN_BTN_ARM); // HIGH = not pressed, LOW = pressed
   uint32_t now = millis();
@@ -202,7 +201,7 @@ bool buttonPressed() {
   return false;
 }
 
-// ====== LED pattern ======
+// LED pattern
 void setLedPattern(RunState s) {
   static uint32_t last = 0; static bool on = false;
   uint32_t now = millis();
@@ -212,7 +211,7 @@ void setLedPattern(RunState s) {
   if (now - last >= interval) { on = !on; digitalWrite(PIN_STATUS_LED, on ? HIGH : LOW); last = now; }
 }
 
-// ====== Calibration ======
+// Calibration
 void runCalibration() {
   Serial.println(F("\n=== RC Calibration Mode ==="));
   Serial.println(F("Move throttle/steering through full range, then press ARM button to save."));
@@ -262,7 +261,7 @@ void runCalibration() {
   }
 }
 
-// ====== Setup / Loop ======
+// Setup / Loop
 void setup() {
   pinMode(PIN_BTN_ARM, INPUT_PULLUP);
   pinMode(PIN_STATUS_LED, OUTPUT);
@@ -274,7 +273,7 @@ void setup() {
   if (!loadCal(g_cal)) { Serial.println(F("No valid calibration; using defaults.")); setDefaultCal(g_cal); }
   else                 { Serial.println(F("Calibration loaded from EEPROM.")); }
 
-  // Long-press on boot -> calibration
+  // Long-press on boot - calibration
   uint32_t bootStart = millis();
   while (millis() - bootStart < LONG_PRESS_MS) {
     if (digitalRead(PIN_BTN_ARM) == LOW) { runCalibration(); break; }
@@ -303,12 +302,12 @@ void setup() {
 }
 
 void loop() {
-  // --- Timing ---
+  // Timing
   uint32_t nowUs = micros();
   float dt = (nowUs - g_lastLoopUs) / 1e6f; if (dt <= 0) dt = 0.001f;
   g_lastLoopUs = nowUs;
 
-  // --- Copy RC inputs (atomic) ---
+  // Copy RC inputs (atomic)
   uint16_t thrUs, strUs; uint32_t thrUpd, strUpd;
   noInterrupts();
   thrUs = thrPulseUs; strUs = strPulseUs; thrUpd = thrLastUpdateUs; strUpd = strLastUpdateUs;
@@ -318,7 +317,7 @@ void loop() {
   bool strOk = (nowUs - strUpd) < RC_SIGNAL_TIMEOUT_US;
   bool signalOk = thrOk && strOk;
 
-  // --- Button: toggle arm when safe ---
+  // Button: toggle arm when safe
   if (buttonPressed()) {
     if (g_state == DISARMED && signalOk) {
       float thrNormTmp = mapPulseToNorm(thrUs, g_cal.thrMin, g_cal.thrMid, g_cal.thrMax);
@@ -334,10 +333,10 @@ void loop() {
     }
   }
 
-  // --- Safety: signal loss -> FAULT ---
+  // Safety stuff - signal loss -> FAULT
   if (!signalOk && g_state == ARMED) { g_state = FAULT; Serial.println(F("STATE: FAULT (signal timeout)")); }
 
-  // --- Normalize & shape ---
+  // Normalize & shape
   float thrNorm = mapPulseToNorm(thrUs, g_cal.thrMin, g_cal.thrMid, g_cal.thrMax);
   float strNorm = mapPulseToNorm(strUs, g_cal.strMin, g_cal.strMid, g_cal.strMax);
 
@@ -346,13 +345,13 @@ void loop() {
   thrNorm = applyExpo(thrNorm, EXPO);
   strNorm = applyExpo(strNorm, EXPO);
 
-  // EMA toward target, then slew-limit toward that EMA
+  // EMA toward target, then slew-limit toward tha EMA
   float thrEma = (1.0f - EMA_ALPHA) * g_thrOut + EMA_ALPHA * thrNorm;
   float strEma = (1.0f - EMA_ALPHA) * g_strOut + EMA_ALPHA * strNorm;
   g_thrOut = slewLimit(thrEma, g_thrOut, SLEW_PER_SEC, dt);
   g_strOut = slewLimit(strEma, g_strOut, SLEW_PER_SEC * 1.2f, dt);
 
-  // --- Decide outputs based on state ---
+  // Decide outputs based on state
   uint16_t escUs = ESC_NEUTRAL_US;
   uint16_t steerUs = STEER_CENTER_US;
 
@@ -367,14 +366,14 @@ void loop() {
       escUs = ESC_NEUTRAL_US; steerUs = STEER_CENTER_US; break;
   }
 
-  // --- Write outputs ---
+  // Write outputs 
   esc.writeMicroseconds(escUs);
   steer.writeMicroseconds(steerUs);
 
-  // --- LED pattern ---
+  // LED pattern
   setLedPattern(g_state);
 
-  // --- Optional battery diagnostics ---
+  // Battery diagnostics (typically not included, still working on it)
   if (millis() - g_lastVBatMs > VBAT_SAMPLE_MS) {
     g_lastVBatMs = millis();
     float vbat = readVBat();
@@ -385,7 +384,7 @@ void loop() {
     }
   }
 
-  // --- Debug (optional) ---
+  // Debug stuff
   /*
   static uint32_t lastDbg = 0;
   if (millis() - lastDbg > 200) {
@@ -400,7 +399,7 @@ void loop() {
   }
   */
 
-  // --- Soft timing (~100 Hz) ---
+  // Soft timing (~100 Hz)
   uint32_t used = micros() - nowUs;
   int32_t targetUs = LOOP_DT_TARGET_MS * 1000;
   if ((int32_t)used < targetUs) delayMicroseconds(targetUs - used);
